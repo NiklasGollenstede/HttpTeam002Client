@@ -1,4 +1,5 @@
 (function() {
+	'use strict';
 	var self;
 	var System = Java.type('java.lang.System');
 	var Exception = Java.type('java.lang.Exception');
@@ -165,9 +166,9 @@
 						var item;
 						if ((item = this.find({ year: year, month: month, }))) {
 							selected = item;
-							self.budget = selected.budget.toFixed(2);
-							self.sum = selected.sum.toFixed(2);
-							self.diff = ((selected.sum - selected.budget) / selected.budget * 100).toFixed(2);
+							self.budget = (+selected.budget).toFixed(2).replace('.', ',');
+							self.sum = (+selected.sum).toFixed(2).replace('.', ',');
+							self.diff = ((selected.sum - selected.budget) / selected.budget * 100).toFixed(2).replace('.', ',');
 						}
 					},
 					update: function(year, month, change) {
@@ -196,6 +197,7 @@
 				{ year: 2014, month: 9, budget: 409, sum: 409 - 100, },
 				{ year: 2015, month: 5, budget: 505, sum: 505 - 100, },
 				{ year: 2015, month: 9, budget: 509, sum: 509 - 100, },
+				{ year: 2015, month: 12, budget: 512, sum: 512 - 100, },
 			].forEach(function(item) self.calender.add(item)); 
 
 
@@ -203,19 +205,19 @@
 		yearComboboxChanged: function(year) {
 			print("yearComboboxChanged: ", year);
 			if (year != null) {
-				self.year = year;
+				self.year = +year;
 			}
 		},
 		monthComboboxChanged: function(month) {
 			print("monthComboboxChanged: ", month);
 			if (month != null) {
-				self.month = month;
+				self.month = +month;
 			}
 
 		},
 		budgetChanged: function(budget) {
 			print("budgetChanged: ", budget);
-			self.calender.update(self.year, self.month, { budget: budget, });
+			self.calender.update(self.year, self.month, { budget: +budget.replace(/\./g, "").replace(",", "."), });
 		},
 		buttonAddClicked: function() {
 			print("buttonAddClicked");
