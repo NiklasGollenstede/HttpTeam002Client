@@ -8,6 +8,17 @@
 	var Date = Java.type('java.util.Date');
 	var Dialog = Java.type('de.tuhh.vs.lab.common.ui.BookingEntryDialog');
 
+	var Validate, Types;
+	(function(validator) {
+		Validate = validator.validate.bind(null, print);
+		Types = validator.types;
+	})(load('./validate.js'));
+
+	var bad = { id: -1, desc: 42, amount: Infinity, date: -3, begone: 'very bad', }
+	print(JSON.stringify(bad), '=>', JSON.stringify(Validate(Types.payment, bad)));
+
+	var Logger = function(line) function(arg) print("log "+ line +":", arg);
+
 	function Modal(old) {
 		return new Promise(function(resolve, reject) {
 			var dialog = new Dialog((old.id && old.id != -1 ? "edit" : "create") +" entry", false);
@@ -15,7 +26,7 @@
 			var date = new Date(old.date || 0);
 			dialog.setBookingDateString(old.dateString || (date.getDate() +"."+ (date.getMonth()- -1) +"."+ (date.getYear()- -1900)));
 			dialog.setDescriptionString(old.desc || "");
-			dialog.setAmountString((old.amount === 0 || old.amount) ? old.amount : 0);
+			dialog.setAmountString(((old.amount || 0)+ "").replace('.', ','));
 
 			dialog.setVisible(true);
 			new Thread(function() {
@@ -25,11 +36,16 @@
 						if (date == null) {
 							throw "bad date format";
 						}
+
 						resolve({
 							id: old.id || -1,
 							desc: dialog.getDescriptionString() +"",
-							amount: +dialog.getAmountString(),
-							date: new Date(((date[4] ? date[3] : "20"+ date[3]) - 1900), (date[2] - 1), +date[1]).getTime(),
+							amount: +(dialog.getAmountString().replace(/\./g, "").replace(",", ".")),
+							date: new Date( // year: 00 ^= 2000 AD; 29 ^= 2029 AD; 30 ^= 1930 AD; 99 ^= 1999 AD; 100+ ^= 100+ AD
+								((+date[3] < 30) ? (date[3]- -100) : ((+date[3] < 100) ? date[3] : (date[3] - 1900))),
+								(date[2] - 1),
+								(date[1] - 0)
+							).getTime(),
 						});
 					} else {
 						throw "canceled by user";
@@ -77,7 +93,6 @@
 					get: function() { return +year; },
 					set: function(value) {
 						year = +value;
-						year != null && month != null && self.calender.select(year, month);
 						year != null && (self.months = self.calender.getMonths(year));
 					},
 				});
@@ -90,23 +105,32 @@
 
 			self.list = (function() {
 				var list = [];
+				var _update = function() self.table.setList(list.reduce(function(list, x, index) (list.add(index), list), new ArrayList()));
 				return {
+					init: function(array) {
+						list = array.slice();
+						_update();
+					},
+					clear: function() {
+						list = [];
+						_update();
+					},
 					add: function(entry) {
 						list.push(entry);
-						self.table.setList(list.reduce(function(list, x, index) (list.add(index), list), new ArrayList()));
+						_update();
 					},
 					update: function(entry) {
 						for (var i = 0; i < list.length; i++) {
 							if (list[i].id === entry.id) {
 								list[i] = entry;
-								self.table.setList(list.reduce(function(list, x, index) (list.add(index), list), new ArrayList()));
+								_update();
 								return;
 							}
 						}
 					},
 					remove: function(index /*or entry*/) {
 						for (var i = 0; +index != index && i < list.length; i++) {
-							if (list[i].id === entry.id) {
+							if (list[i].id === index.id) {
 								index = i;
 							}
 						}
@@ -138,6 +162,14 @@
 
 						self.months = this.getMonths(self.combo.year.getSelectedItem());
 					},
+					init: function(array) {
+						list = array.slice();
+						this.refresh();
+					},
+					clear: function() {
+						list = [];
+						this.refresh();
+					},
 					getMonths: function(year) {
 						return list.reduce(function(list, item) ((item.year == year && list.indexOf(item.month) == -1 && list.push(item.month)), list), []);
 					},
@@ -157,7 +189,6 @@
 						} else {
 							throw new Exception("month doesn't exsist");
 						}
-						
 					},
 					get: function(year, month) {
 						this.find({ year: year, month: month, });
@@ -166,40 +197,51 @@
 						var item;
 						if ((item = this.find({ year: year, month: month, }))) {
 							selected = item;
-							self.budget = (+selected.budget).toFixed(2).replace('.', ',');
-							self.sum = (+selected.sum).toFixed(2).replace('.', ',');
-							self.diff = ((selected.sum - selected.budget) / selected.budget * 100).toFixed(2).replace('.', ',');
+							self.list.init([ { id: 0, desc: 'Pending ...', amount: Infinity, date: System.currentTimeMillis(), }, ]);
+							self.budget = self.sum = self.diff = '...';
+
+							JsonRequest("get", self.baseUrl +"/months/"+ year +"/"+ month)
+							.then(function(month) {
+								self.calender.update(month.year, month.month, month);
+							}).catch(Logger(__LINE__));
+
+							JsonRequest("get", self.baseUrl +"/payments/"+ year +"/"+ month)
+							.then(function(payments) {
+								if (year != selected.year || month != selected.month) { return; }
+								self.list.init(payments);
+							}).catch(Logger(__LINE__));
 						}
 					},
 					update: function(year, month, change) {
 						var item = this.find({ year: year, month: month, });
 						Object.keys(change).forEach(function(key) item[key] = change[key]);
-						if (item == selected) { this.select(year, month); }
+						if (item == selected) {
+							self.budget = (+item.budget).toFixed(2).replace('.', ',');
+							self.sum = (+item.sum).toFixed(2).replace('.', ',');
+							self.diff = ((item.sum - item.budget) / item.budget * 100).toFixed(2).replace('.', ',');
+						}
 					},
+					setBudget: function(year, month, budget) {
+						var old = this.find({ year: year, month: month, });
+						var now = JSON.parse(JSON.stringify(old));
+						now.budget = budget;
+						self.budget = Infinity;
+
+						JsonRequest("post", self.baseUrl +"/months", [ old, now, ])
+						.then(function(month) {
+							self.calender.update(month.year, month.month, month);
+						}).catch(Logger(__LINE__));
+					}
 				};
 			})();
 
 
-			print("init list");
-			[
-				{ id: 0, desc: 'Toast', amount: 0.60, date: System.currentTimeMillis(), },
-				{ id: 1, desc: 'Butter', amount: 0.80, date: System.currentTimeMillis(), },
-				{ id: 2, desc: 'Klopse', amount: 1.60, date: System.currentTimeMillis(), },
-			].forEach(function(item) self.list.add(item));
+			self.list.init([ { id: 0, desc: 'Pending ...', amount: Infinity, date: System.currentTimeMillis(), }, ]);
 
-			print("init calender");
-			[
-				{ year: 2012, month: 1, budget: 201, sum: 201 - 100, },
-				{ year: 2012, month: 5, budget: 205, sum: 205 - 100, },
-				{ year: 2013, month: 1, budget: 301, sum: 301 - 100, },
-				{ year: 2013, month: 7, budget: 307, sum: 307 - 100, },
-				{ year: 2014, month: 1, budget: 401, sum: 401 - 100, },
-				{ year: 2014, month: 9, budget: 409, sum: 409 - 100, },
-				{ year: 2015, month: 5, budget: 505, sum: 505 - 100, },
-				{ year: 2015, month: 9, budget: 509, sum: 509 - 100, },
-				{ year: 2015, month: 12, budget: 512, sum: 512 - 100, },
-			].forEach(function(item) self.calender.add(item)); 
-
+			JsonRequest("get", self.baseUrl +"/months")
+			.then(function(months) {
+				self.calender.init(months);
+			}).catch(Logger(__LINE__));
 
 		},
 		yearComboboxChanged: function(year) {
@@ -213,11 +255,10 @@
 			if (month != null) {
 				self.month = +month;
 			}
-
 		},
 		budgetChanged: function(budget) {
 			print("budgetChanged: ", budget);
-			self.calender.update(self.year, self.month, { budget: +budget.replace(/\./g, "").replace(",", "."), });
+			self.calender.setBudget(self.year, self.month, +(budget.replace(/\./g, "").replace(",", ".")));
 		},
 		buttonAddClicked: function() {
 			print("buttonAddClicked");
@@ -230,17 +271,13 @@
 				entry.id = -1;
 				return JsonRequest("put", self.baseUrl +"/payments", entry);
 			}).then(function(pair) {
-				print("bum:");
 				var month = pair[1];
 				self.calender.update(month.year, month.month, month);
 				var entry = pair[0];
-				if (entry.year == self.year && entry.month == self.month) {
-					self.list.update(entry);
+				if (month.year == self.year && month.month == self.month) {
+					self.list.add(entry);
 				}
-			}).catch(function(error) {
-				print(error);
-				e.printStackTrace && e.printStackTrace();
-			});
+			}).catch(Logger(__LINE__));
 		},
 		buttonModifyClicked: function() {
 			print("buttonModifyClicked");
@@ -253,12 +290,10 @@
 				return JsonRequest("post", self.baseUrl +"/payments", [ old, now, ]);
 			}).then(function(month) {
 				self.calender.update(month.year, month.month, month);
-				if (entry.year == self.year && entry.month == self.month) {
+				if (month.year == self.year && month.month == self.month) {
 					self.list.update(entry);
 				}
-			}).catch(function(error) {
-				print(error);
-			});
+			}).catch(Logger(__LINE__));
 		},
 		buttonDeleteClicked: function() {
 			print("buttonDeleteClicked");
@@ -266,28 +301,27 @@
 			JsonRequest("delete", self.baseUrl +"/payments", entry)
 			.then(function(month) {
 				self.calender.update(month.year, month.month, month);
-				if (entry.year == self.year && entry.month == self.month) {
+				if (month.year == self.year && month.month == self.month) {
 					self.list.remove(entry);
 				}
-			}).catch(function(error) {
-				print(error);
-			});
+			}).catch(Logger(__LINE__));
 		},
 		mainWindowClosed: function() {
 			print("mainWindowClosed");
 			System.exit(0);
 		},
 		getBookingDescriptionFromObject: function(index) {
-			print("getBookingDescriptionFromObject: ", index);
 			return self.list.get(index).desc;
 		},
 		getBookingDateFromObject: function(index) {
-			print("getBookingDateFromObject: ", index);
 			return self.list.get(index).date;
 		},
 		getBookingAmountFromObject: function(index) {
-			print("getBookingAmountFromObject: ", index);
-			return self.list.get(index).amount;
+			var amount = self.list.get(index).amount;
+			if (amount % 1 === 0) { // cast so double
+				amount = +(amount +".0");
+			}
+			return amount;
 		},
 	});
 }).call(this);

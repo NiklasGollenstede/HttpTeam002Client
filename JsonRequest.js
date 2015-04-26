@@ -10,7 +10,6 @@ this.JsonRequest = (function() {
 				url: url,
 				data: data && JSON.stringify(data),
 				onload: function(text) {
-					print('onload', text);
 					try {
 						resolve(JSON.parse(text));
 					} catch (e) {
@@ -18,7 +17,6 @@ this.JsonRequest = (function() {
 					}
 				},
 				onerror: function(error) {
-					print('onerror', error);
 					try {
 						reject(JSON.parse(text));
 					} catch (e) {

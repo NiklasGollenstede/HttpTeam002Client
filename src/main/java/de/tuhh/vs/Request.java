@@ -36,6 +36,7 @@ public class Request {
 		connection.setRequestMethod(method);
 		connection.setRequestProperty("content-type", "application/json");
 		connection.setRequestProperty("accept", "application/json");
+		connection.setRequestProperty("user-agent", connection.getRequestProperty("user-agent") +"HttpTeam002Client");
 		connection.setUseCaches(false);
 		connection.setDoInput(true);
 		connection.setDoOutput(true);
