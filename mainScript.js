@@ -14,9 +14,6 @@
 		Types = validator.types;
 	})(load('./validate.js'));
 
-	var bad = { id: -1, desc: 42, amount: Infinity, date: -3, begone: 'very bad', }
-	print(JSON.stringify(bad), '=>', JSON.stringify(Validate(Types.payment, bad)));
-
 	var Logger = function(line) function(arg) print("log "+ line +":", arg);
 
 	function Modal(old) {
