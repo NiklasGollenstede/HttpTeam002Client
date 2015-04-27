@@ -199,11 +199,13 @@
 
 							JsonRequest("get", self.baseUrl +"/months/"+ year +"/"+ month)
 							.then(function(month) {
+								Validate(Types.month, month);
 								self.calender.update(month.year, month.month, month);
 							}).catch(Logger(__LINE__));
 
 							JsonRequest("get", self.baseUrl +"/payments/"+ year +"/"+ month)
 							.then(function(payments) {
+								payments.forEach(function(payment) Validate(Types.payment, payment));
 								if (year != selected.year || month != selected.month) { return; }
 								self.list.init(payments);
 							}).catch(Logger(__LINE__));
@@ -226,6 +228,7 @@
 
 						JsonRequest("post", self.baseUrl +"/months", [ old, now, ])
 						.then(function(month) {
+							Validate(Types.month, month);
 							self.calender.update(month.year, month.month, month);
 						}).catch(Logger(__LINE__));
 					}
@@ -237,6 +240,7 @@
 
 			JsonRequest("get", self.baseUrl +"/months")
 			.then(function(months) {
+				months.forEach(function(month) Validate(Types.month, month));
 				self.calender.init(months);
 			}).catch(Logger(__LINE__));
 
@@ -268,9 +272,9 @@
 				entry.id = -1;
 				return JsonRequest("put", self.baseUrl +"/payments", entry);
 			}).then(function(pair) {
-				var month = pair[1];
+				var month = Validate(Types.month, pair[1]);
 				self.calender.update(month.year, month.month, month);
-				var entry = pair[0];
+				var entry = Validate(Types.payment, pair[0]);
 				if (month.year == self.year && month.month == self.month) {
 					self.list.add(entry);
 				}
@@ -286,6 +290,7 @@
 				entry = now;
 				return JsonRequest("post", self.baseUrl +"/payments", [ old, now, ]);
 			}).then(function(month) {
+				Validate(Types.month, month);
 				self.calender.update(month.year, month.month, month);
 				if (month.year == self.year && month.month == self.month) {
 					self.list.update(entry);
@@ -297,6 +302,7 @@
 			var entry = self.list.get(self.table.getObject(self.rows.getSelectedRow()));
 			JsonRequest("delete", self.baseUrl +"/payments", entry)
 			.then(function(month) {
+				Validate(Types.month, month);
 				self.calender.update(month.year, month.month, month);
 				if (month.year == self.year && month.month == self.month) {
 					self.list.remove(entry);
