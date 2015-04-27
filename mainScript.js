@@ -275,7 +275,6 @@
 				var month = Validate(Types.month, pair[1]);
 				self.calender.update(month.year, month.month, month);
 				var entry = Validate(Types.payment, pair[0]);
-				print("blob");
 				if (month.year == self.year && month.month == self.month) {
 					self.list.add(entry);
 				}
