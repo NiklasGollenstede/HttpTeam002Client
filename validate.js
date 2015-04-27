@@ -1,13 +1,8 @@
-(function(global) {
+(function() {
 	'use strict';
-	if (typeof exports != 'undefined') {
-		global = exports;
-	}
-	if (!global) {
-		global = { };
-	}
+	var global = (typeof exports != 'undefined') ? exports : { };
 
-	var natural = { type: "number", range: [0, Number.MAX_SAFE_INTEGER], error: "cast warn", map: function(i) { return Math.round(i); }, };
+	var natural = { type: "number", range: [0, 4503599627370495/*^=2^52-1*/], error: "cast warn", map: function(i) { return Math.round(i); }, };
 	var date = natural;
 	var month = { type: "number", range: [1, 12], error: "cast warn", map: function(i) { return Math.round(i); }, };
 	var positive = { type: "number", range: [0, Number.MAX_VALUE], error: "cast warn", };
@@ -60,8 +55,9 @@
 					continue;
 				}
 
-				if (validator.map) {
-					object[key] = validator.map(object[key]);
+				var mapped;
+				if (validator.map && (mapped = validator.map(object[key])) !== object[key]) {
+					object[key] = mapped;
 				}
 
 				if (typeof object[key] !== validator.type) {
@@ -99,7 +95,7 @@
 					}
 				} else
 				if (validator.type == "number" && validator.range
-					&& !(validator.range[0] < object[key] && object[key] < validator.range[1])
+					&& !(validator.range[0] <= object[key] && object[key] <= validator.range[1])
 				) {
 					if (validator.error.indexOf("warn") !== -1) {
 						log("object."+ key +" = "+ object[key] +" out of range "+ validator.range[0] +" < value < "+ validator.range[1]);
@@ -124,4 +120,4 @@
 		}
 	};
 	return global;
-})(this);
+})();

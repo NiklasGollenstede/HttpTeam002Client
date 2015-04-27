@@ -37,13 +37,13 @@ public class HandlerJsWrapper extends AbstractTableEntryAdapter implements Booki
 		self.callMember("mainWindowClosed");
 	}
 	public String getBookingDescriptionFromObject(Object obj) {
-		return self.callMember("getBookingDescriptionFromObject", ((Long) obj)).toString();
+		return self.callMember("getBookingDescriptionFromObject", obj).toString();
 	}
 	public Date getBookingDateFromObject(Object obj) {
-		return new Date((Long) self.callMember("getBookingDateFromObject", ((Long) obj)));
+		return new Date((Long) self.callMember("getBookingDateFromObject", obj));
 	}
 	public Double getBookingAmountFromObject(Object obj) {
-		return ((Double) self.callMember("getBookingAmountFromObject", ((Long) obj)));
+		return ((Double) self.callMember("getBookingAmountFromObject", obj));
 	}
 
 }

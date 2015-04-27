@@ -275,6 +275,7 @@
 				var month = Validate(Types.month, pair[1]);
 				self.calender.update(month.year, month.month, month);
 				var entry = Validate(Types.payment, pair[0]);
+				print("blob");
 				if (month.year == self.year && month.month == self.month) {
 					self.list.add(entry);
 				}
@@ -317,11 +318,12 @@
 			return self.list.get(index).desc;
 		},
 		getBookingDateFromObject: function(index) {
+			print('getBookingDateFromObject', index);
 			return self.list.get(index).date;
 		},
 		getBookingAmountFromObject: function(index) {
 			var amount = self.list.get(index).amount;
-			if (amount % 1 === 0) { // cast so double
+			if (amount % 1 === 0) { // cast to double
 				amount = +(amount +".0");
 			}
 			return amount;
