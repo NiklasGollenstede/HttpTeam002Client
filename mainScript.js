@@ -2,6 +2,8 @@
 	'use strict';
 	var self;
 	var System = Java.type('java.lang.System');
+	var Long = Java.type('java.lang.Long');
+	var Double = Java.type('java.lang.Double');
 	var Exception = Java.type('java.lang.Exception');
 	var Thread = Java.type('java.lang.Thread');
 	var ArrayList = Java.type('java.util.ArrayList');
@@ -317,15 +319,10 @@
 			return self.list.get(index).desc;
 		},
 		getBookingDateFromObject: function(index) {
-			print('getBookingDateFromObject', index);
-			return self.list.get(index).date;
+			return new Long(self.list.get(index).date);
 		},
 		getBookingAmountFromObject: function(index) {
-			var amount = self.list.get(index).amount;
-			if (amount % 1 === 0) { // cast to double
-				amount = +(amount +".0");
-			}
-			return amount;
+			return new Double(self.list.get(index).amount);
 		},
 	});
 }).call(this);
