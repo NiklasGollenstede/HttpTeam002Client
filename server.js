@@ -10,7 +10,7 @@
 * @require a working installation of node.js
 */
 
-var options = process.argv[2] && eval('('+ process.argv[2] +')') || { };
+var options = process.argv[2] && eval('('+ process.argv[2] +')') || { }; // XXX remove eval
 options = Object.keys(options).reduce(function(ret, key) {
 	ret[key.toLowerCase()] = options[key];
 	return ret;

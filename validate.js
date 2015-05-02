@@ -2,26 +2,26 @@
 	'use strict';
 	var global = (typeof exports != 'undefined') ? exports : { };
 
-	var natural = { type: "number", range: [0, 4503599627370495/*^=2^52-1*/], error: "cast warn", map: function(i) { return Math.round(i); }, };
+	var natural = { type: "number", range: [0, 4503599627370495/*^=2^52-1*/], cast: true,  warn: true, map: Math.round, };
 	var date = natural;
-	var month = { type: "number", range: [1, 12], error: "cast warn", map: function(i) { return Math.round(i); }, };
-	var positive = { type: "number", range: [0, Number.MAX_VALUE], error: "cast warn", };
-	var rational = { type: "number", range: [Number.MIN_VALUE, Number.MAX_VALUE], error: "cast warn", };
-	var string = { type: "string", error: "cast warn", };
-	var bool = { type: "boolean", error: "cast warn", };
+	var month = { type: "number", range: [1, 12], cast: true,  warn: true, map: Math.round, };
+	var positive = { type: "number", range: [0, Number.MAX_VALUE], cast: true,  warn: true, };
+	var number = { type: "number", cast: true,  warn: true, };
+	var string = { type: "string", cast: true,  warn: true, };
+	var bool = { type: "boolean", cast: true,  warn: true, };
 
 	// must not contain any key == 'type'
 	var types = global.types = {
 		payment: {
 			id: natural,
 			desc: string,
-			amount: rational,
+			amount: number,
 			date: date,
 		},
 		month: {
 			id: natural,
-			sum: rational,
-			budget: rational,
+			sum: number,
+			budget: number,
 			year: natural,
 			month: month,
 		}
@@ -29,87 +29,89 @@
 
 	var throwOut = { };
 
-	var validate = global.validate = function(log, type, object) {
-		if (!typeof object === "object") {
-			return undefined;
+	global.validate = function(log, type, souce) {
+		log = log || (function(){});
+		if (typeof souce !== "object") {
+			log("souce = "+ souce +"is not an object, dropping");
+			return null;
 		}
 		if (typeof type === "string") {
 			type = types[type];
 		}
-		if (!typeof type === "object") {
+		if (typeof type !== "object") {
 			throw "invalid type provided";
 		}
-		log = log || (function(){});
+
 		try {
-			for (var key in object) {
-				if (typeof object[key] === "object") {
-					object[key] = validate(log, type[key], object[key]);
-					continue;
-				}
-				// else
+			return (function validate(type, souce, target) {
+				for (var key in souce) {
 
-				var validator = type[key];
-				if (!validator) {
-					log("object."+ key +" = "+ object[key] +" should't exist, deleting");
-					delete object[key];
-					continue;
-				}
-
-				var mapped;
-				if (validator.map && (mapped = validator.map(object[key])) !== object[key]) {
-					object[key] = mapped;
-				}
-
-				if (typeof object[key] !== validator.type) {
-					if (validator.error.indexOf("warn") !== -1) {
-						log("typeof (object."+ key +" = "+ object[key] +") !== "+ validator.type);
+					var validator = type[key];
+					if (!validator) {
+						log("souce."+ key +" = "+ souce[key] +" should't exist, skiping");
+						continue;
 					}
-					if (validator.error.indexOf("drop") !== -1) {
-						throw "typeof (object."+ key +" = "+ object[key] +") !== "+ validator.type;
-					} else if (validator.error.indexOf("cast") !== -1) {
-						if (validator.type == "string") {
-							object[key] = object[key] +""; log("WTF");
-						} else if (validator.type == "number") {
-							object[key] = object[key] -0; log("blub");
-						} else if (validator.type == "boolean") {
-							object[key] = !!object[key];
+
+					if (typeof souce[key] === "object") {
+						target[key] = validate(validator, souce[key], { });
+						continue;
+					}
+
+					var value = validator.map ? validator.map(souce[key]) : souce[key];
+
+					if (typeof value !== validator.type) {
+						validator.warn && log("typeof (souce."+ key +" = "+ value +") !== "+ validator.type);
+
+						if (validator.drop) {
+							throw "typeof (souce."+ key +" = "+ value +") !== "+ validator.type;
+						} else if (validator.cast) {
+							if (validator.type == "string") {
+								value = value +"";
+							} else if (validator.type == "number") {
+								value = +value;
+							} else if (validator.type == "boolean") {
+								value = !!value;
+							}
+							if (typeof value !== validator.type) { // still wrong type
+								throw "couldn't cast (souce."+ key +" = "+ value +") to "+ validator.type;
+							}
+						} else {
+							throw { type: throwOut, error: "typeof (souce."+ key +" = "+ value +") !== "+ validator.type, };
 						}
-						if (typeof object[key] !== validator.type) { // still wrong type
-							throw "couldn't cast (object."+ key +" = "+ object[key] +") to "+ validator.type;
-						}
-					} else {
-						throw { type: throwOut, error: "typeof (object."+ key +" = "+ object[key] +") !== "+ validator.type, };
-					}
-				} // type is correct
+					} // type is correct
 
-				if (validator.type == "string" && validator.match
-					&& !validator.match.test(object[key])
-				) {
-					if (validator.error.indexOf("warn") !== -1) {
-						log("object."+ key +" = "+ object[key] +" doesn't match "+ validator.match);
+					// check validator.match
+					if (validator.type == "string" && validator.match
+						&& !validator.match.test(value)
+					) {
+						validator.warn && log("souce."+ key +" = "+ value +" doesn't match "+ validator.match);
+
+						if (validator.drop) {
+							throw "souce."+ key +" = "+ value +" doesn't match "+ validator.match;
+						} else {
+							throw { type: throwOut, error: "souce."+ key +" = "+ value +" doesn't match "+ validator.match, };
+						}
 					}
-					if (validator.error.indexOf("drop") !== -1) {
-						throw "object."+ key +" = "+ object[key] +" doesn't match "+ validator.match;
-					} else {
-						throw { type: throwOut, error: "object."+ key +" = "+ object[key] +" doesn't match "+ validator.match, };
+
+					// check validator.range
+					if (validator.type == "number" && validator.range
+						&& !(validator.range[0] <= value && value <= validator.range[1])
+					) {
+						validator.warn && log("souce."+ key +" = "+ value +" out of range "+ validator.range[0] +" < value < "+ validator.range[1]);
+
+						if (validator.drop) {
+							throw "souce."+ key +" = "+ value +" out of range "+ validator.range[0] +" < value < "+ validator.range[1];
+						} else if (validator.cast) {
+							value = Math.min(validator.range[1], Math.max(validator.range[0], value));
+						} else {
+							throw { type: throwOut, error: "souce."+ key +" = "+ value +" out of range "+ validator.range[0] +" < value < "+ validator.range[1], };
+						}
 					}
-				} else
-				if (validator.type == "number" && validator.range
-					&& !(validator.range[0] <= object[key] && object[key] <= validator.range[1])
-				) {
-					if (validator.error.indexOf("warn") !== -1) {
-						log("object."+ key +" = "+ object[key] +" out of range "+ validator.range[0] +" < value < "+ validator.range[1]);
-					}
-					if (validator.error.indexOf("drop") !== -1) {
-						throw "object."+ key +" = "+ object[key] +" out of range "+ validator.range[0] +" < value < "+ validator.range[1];
-					} else if (validator.error.indexOf("cast") !== -1) {
-						object[key] = Math.min(validator.range[1], Math.max(validator.range[0], object[key]));
-					} else {
-						throw { type: throwOut, error: "object."+ key +" = "+ object[key] +" out of range "+ validator.range[0] +" < value < "+ validator.range[1], };
-					}
+
+					target[key] = value;
 				}
-			}
-			return object;
+				return target;
+			})(type, souce, { });
 		} catch (e) {
 			if (e.type === throwOut) {
 				throw e.error;
