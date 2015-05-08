@@ -57,7 +57,7 @@
 	}
 
 	return self = ({
-		init: function(port) {
+		init: makeAsync(function(port) {
 			print("init: ", port);
 			self.baseUrl = 'http://localhost:'+ port;
 			self.panel = window.getPanel();
@@ -205,13 +205,13 @@
 							self.list.init([ { id: 0, desc: 'Pending ...', amount: Infinity, date: System.currentTimeMillis(), }, ]);
 							self.budget = self.sum = self.diff = '...';
 
-							JsonRequest("get", self.baseUrl +"/months/"+ year +"/"+ month)
+							JsonRequest("get", self.baseUrl +"/months/"+ year +"/"+ month, null, 2000)
 							.then(function(month) {
 								Validate(Types.month, month);
 								self.calender.update(month.year, month.month, month);
 							}).catch(Logger(__LINE__));
 
-							JsonRequest("get", self.baseUrl +"/payments/"+ year +"/"+ month)
+							JsonRequest("get", self.baseUrl +"/payments/"+ year +"/"+ month, null, 2000)
 							.then(function(payments) {
 								payments.forEach(function(payment) Validate(Types.payment, payment));
 								if (year != selected.year || month != selected.month) { return; }
@@ -245,30 +245,30 @@
 
 			self.list.init([ { id: 0, desc: 'Pending ...', amount: Infinity, date: System.currentTimeMillis(), }, ]);
 
-			JsonRequest("get", self.baseUrl +"/months")
+			JsonRequest("get", self.baseUrl +"/months", null, 2000)
 			.then(function(months) {
 				months.forEach(function(month) Validate(Types.month, month));
 				self.calender.init(months);
 			}).catch(Logger(__LINE__));
 
-		},
-		yearComboboxChanged: function(year) {
+		}),
+		yearComboboxChanged: makeAsync(function(year) {
 			print("yearComboboxChanged: ", year);
 			if (year != null) {
 				self.year = +year;
 			}
-		},
-		monthComboboxChanged: function(month) {
+		}),
+		monthComboboxChanged: makeAsync(function(month) {
 			print("monthComboboxChanged: ", month);
 			if (month != null) {
 				self.month = +month;
 			}
-		},
-		budgetChanged: function(budget) {
+		}),
+		budgetChanged: makeAsync(function(budget) {
 			print("budgetChanged: ", budget);
 			self.calender.setBudget(self.year, self.month, +(budget.replace(/\./g, "").replace(",", ".")));
-		},
-		buttonAddClicked: function() {
+		}),
+		buttonAddClicked: makeAsync(function() {
 			print("buttonAddClicked");
 			Modal({
 				dateString: "1."+ self.month +"."+ self.year,
@@ -286,8 +286,8 @@
 					self.list.add(entry);
 				}
 			}).catch(Logger(__LINE__));
-		},
-		buttonModifyClicked: function() {
+		}),
+		buttonModifyClicked: makeAsync(function() {
 			print("buttonModifyClicked");
 			var old = self.list.get(self.table.getObject(self.rows.getSelectedRow()));
 			var entry;
@@ -303,8 +303,8 @@
 					self.list.update(entry);
 				}
 			}).catch(Logger(__LINE__));
-		},
-		buttonDeleteClicked: function() {
+		}),
+		buttonDeleteClicked: makeAsync(function() {
 			print("buttonDeleteClicked");
 			var entry = self.list.get(self.table.getObject(self.rows.getSelectedRow()));
 			JsonRequest("delete", self.baseUrl +"/payments", entry)
@@ -315,7 +315,7 @@
 					self.list.remove(entry);
 				}
 			}).catch(Logger(__LINE__));
-		},
+		}),
 		mainWindowClosed: function() {
 			print("mainWindowClosed");
 			System.exit(0);

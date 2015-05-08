@@ -243,7 +243,8 @@ function handle(response, method, url, body) {
 }
 
 require('http').createServer(function(request, response) {
-	console.log('request.headers:', request.headers);
+	// console.log('request.headers:', request.headers);
+	request.headers.accept != 'application/json' && console.log("request.headers.accept != 'application/json'");
 
 	if ([ 'put', 'post', 'delete' ].indexOf(request.method.toLowerCase()) != -1) {
 		request.once('data', postpone.bind(null, response, request.method, request.url));
