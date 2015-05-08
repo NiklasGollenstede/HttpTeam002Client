@@ -81,10 +81,16 @@
 				set: function(value) { self.panel.getFormTextfieldSum().setText(value +""); },
 			});
 			Object.defineProperty(self, 'years', {
-				set: function(list) { self.combo.year.removeAllItems(); list.forEach(function(year) self.combo.year.addItem(year +'')); },
+				set: function(list) {
+					self.combo.year.removeAllItems();
+					list.forEach(function(year) self.combo.year.addItem(year +''));
+				},
 			});
 			Object.defineProperty(self, 'months', {
-				set: function(list) { self.combo.month.removeAllItems(); list.forEach(function(month) self.combo.month.addItem(month +'')); },
+				set: function(list) {
+					self.combo.month.removeAllItems();
+					list.forEach(function(month) self.combo.month.addItem(month +''));
+				},
 			});
 			(function() {
 				var year, month;
@@ -223,12 +229,11 @@
 						}
 					},
 					setBudget: function(year, month, budget) {
-						var old = this.find({ year: year, month: month, });
-						var now = JSON.parse(JSON.stringify(old));
+						var now = this.find({ year: year, month: month, });
 						now.budget = budget;
 						self.budget = Infinity;
 
-						JsonRequest("post", self.baseUrl +"/months", [ old, now, ])
+						JsonRequest("post", self.baseUrl +"/months", now)
 						.then(function(month) {
 							Validate(Types.month, month);
 							self.calender.update(month.year, month.month, month);

@@ -1,32 +1,48 @@
 /**
 * node.js implementation of the server as described in 'Aufgebe 2' of the 'Praktikum: Verteilte Systeme' (TUHH, SoSe2015)
 * start via "node server options"
-* @param options A JavaScript object with the following (case insensitive) keys
+* @param node Path to a working installation of node.js
+* @param server Path to this file
+* @param options A JSON object with the following keys, (e.g. "{ \"prompt\": true }")
 * @param options.port The port the server listens at || 8081
 * @param options.ip The servers (ip-)addres || 'localhost'
-* @param options.minPing Minimal (emulated) time the server takes to process a request || 300
-* @param options.maxPing Maximal (emulated) time the server takes to process a request || 800
+* @param options.prompt If true, the server will prompt for permission to answer at each request || false
+* @param options.minping Minimal (emulated) time the server takes to process a request || (options.prompt ? 0 : 300)
+* @param options.maxping Maximal (emulated) time the server takes to process a request || (options.prompt ? 0 : 800)
 *
-* @require a working installation of node.js
+* This implementation supports all required methods and paths (including PUT /months/[year]/[month])
+* At startup it generates some testdata, @see // testdata
+* If the file 'validate.js' is placed in the same folder as 'server.js',
+* 	in- and output will be validated, warned about if not valid and then be cast to ensure data integrity
 */
 
-var options = process.argv[2] && eval('('+ process.argv[2] +')') || { };
-options = Object.keys(options).reduce(function(ret, key) {
-	ret[key.toLowerCase()] = options[key];
-	return ret;
-}, {
-	port: 8081,
-	ip: 'localhost',
-	minping: 300,
-	maxping: 800,
-});
+var args = process.argv[2] && JSON.parse(process.argv[2]) || { };
+var options = {
+	port: args.port || 8081,
+	ip: args.ip || 'localhost',
+};
+if (args.prompt) {
+	options.prompt = true;
+} else {
+	options.maxping = args.maxping || 800;
+	options.minping = Math.min(options.maxping, (args.minping || 300));
+}
 console.log('options:', options);
 
 var Validate, Types;
 (function(validator) {
+	try {
+		validator = require('./validate.js');
+	} catch (e) {
+		console.log('failed to load validate.js, continue without validation');
+		validator = {
+			validate: function() { },
+			types: { },
+		};
+	}
 	Validate = validator.validate.bind(null, console.log.bind(console));
 	Types = validator.types;
-})(require('./validate.js'));
+})();
 
 // keygen
 var newId = (function() {
@@ -47,8 +63,8 @@ var book = [
 		year[month] = {
 			budget: (line[0] % 2010) * 100- -month,
 			entries: [
-				{ id: newId(), desc: line[0] +"-"+ month +"-13", amount: month / 2, date: +(new Date(line[0] +"-"+ (month < 10 ? '0'+ month : month) +"-13")), },
-				{ id: newId(), desc: line[0] +"-"+ month +"-28", amount: month * 2, date: +(new Date(line[0] +"-"+ (month < 10 ? '0'+ month : month) +"-28")), },
+				{ id: newId(), desc: line[0] +"-"+ month +"-13", amount: month * 7, date: +(new Date(line[0] +"-"+ (month < 10 ? '0'+ month : month) +"-13")), },
+				{ id: newId(), desc: line[0] +"-"+ month +"-28", amount: month * 23, date: +(new Date(line[0] +"-"+ (month < 10 ? '0'+ month : month) +"-28")), },
 			],
 		}
 		return year;
@@ -87,7 +103,7 @@ function handle(response, method, url, body) {
 		console.log('handle:', method, url, body);
 
 		var ret = (function() {
-			switch (url.match(/\/(\w*)/)[1]) { // word following the first '/'
+			switch (url.match(/\/(\w*)/)[1]) {
 				case 'payments': {
 					switch (method.toLowerCase()) {
 						case 'get': return (function() {
@@ -107,6 +123,7 @@ function handle(response, method, url, body) {
 							var date = new Date(payment.date);
 							var year = date.getYear()- -1900;
 							var month = date.getMonth()- -1;
+
 							book[year] = book[year] || { };
 							book[year][month] = book[year][month] || {
 								budget: 0,
@@ -114,8 +131,6 @@ function handle(response, method, url, body) {
 							};
 							payment.id = newId();
 							book[year][month].entries.push(payment);
-
-							console.log("book", book);
 
 							return [ payment, new Month(year, month)];
 						})(); break;
@@ -189,12 +204,13 @@ function handle(response, method, url, body) {
 							}
 						})(); break;
 						case 'post': return (function() {
-							console.log('update month ', body[0], ' to ', body[1]);
-							var old = Validate(Types.month, body[0]), now = Validate(Types.month, body[1])
+							console.log('update month to ', body);
+							var now = Validate(Types.month, body)
 							var year = now.year, month = now.month;
-							if (old.id != now.id || ![old, now].every(function(item) {
-								return item.id == item.year*100- -item.month;
-							}) || !(book[year] && book[year][month])) {
+							if (
+								now.id != (now.year*100- -now.month)
+								|| !(book[year] && book[year][month])
+							) {
 								throw Errors.badRequest;
 							}
 							book[year][month].budget = now.budget;
@@ -227,16 +243,48 @@ function handle(response, method, url, body) {
 }
 
 require('http').createServer(function(request, response) {
-	setTimeout(function() {
-		console.log('request.headers:', request.headers);
+	console.log('request.headers:', request.headers);
 
-		if ([ 'put', 'post', 'delete' ].indexOf(request.method.toLowerCase()) != -1) {
-			request.once('data', handle.bind(null, response, request.method, request.url));
-		} else {
-			handle(response, request.method, request.url);
-		}
-
-	}, Math.floor(Math.random() * ((options.maxping - options.minping) || 0) + options.minping));
+	if ([ 'put', 'post', 'delete' ].indexOf(request.method.toLowerCase()) != -1) {
+		request.once('data', postpone.bind(null, response, request.method, request.url));
+	} else {
+		postpone(response, request.method, request.url);
+	}
 }).listen(options.port, options.ip);
 
 console.log('Server running at http://'+ options.ip +':'+ options.port +'/');
+
+var requests = [];
+requests.toString = function() {
+	return 'Requests: ' + (this.reduce(function(string, request, index) {
+		return string +'\n'+ index +": "+ request[1] +" "+ request[2];
+	}, '') || '<none>');
+};
+
+function postpone(response, method, url, body) {
+	var args = arguments;
+	if (!options.prompt) {
+		setTimeout(function() {
+			handle.apply(null, args);
+		}, Math.floor(Math.random() * ((options.maxping - options.minping) || 0) + options.minping));
+	} else {
+		requests.push(args);
+		console.log(requests +'');
+	}
+}
+
+
+options.prompt && process.openStdin().addListener("data", function(line) {
+	var index = +line;
+	if (!(index === 0 || index)) {
+		console.log("NaN, try\n"+ requests);
+		return;
+	}
+	if (!requests[index]) {
+		console.log("invalid index, try\n"+ requests);
+		return;
+	}
+	handle.apply(null, requests[index]);
+	requests.splice(index, 1);
+	console.log(requests +'');
+});

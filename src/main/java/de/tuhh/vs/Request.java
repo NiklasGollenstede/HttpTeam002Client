@@ -20,17 +20,17 @@ public class Request {
 		if (!options.getClassName().equals("Object")) {
 			throw new RuntimeException("options must be an object");
 		}
-		String method = options.containsKey("method") ? (String) options.get("method") : "GET";
-		String url = (String) options.get("url");
-		ScriptObjectMirror onload = (ScriptObjectMirror) options.get("onload");
-		ScriptObjectMirror onerror = (ScriptObjectMirror) options.get("onerror");
+		final String method = options.containsKey("method") ? (String) options.get("method") : "GET";
+		final String url = (String) options.get("url");
+		final ScriptObjectMirror onload = (ScriptObjectMirror) options.get("onload");
+		final ScriptObjectMirror onerror = (ScriptObjectMirror) options.get("onerror");
 		if (!onload.isFunction() || !onerror.isFunction()) {
 			throw new RuntimeException("options[onload && onerror] must be functions");
 		}
 		String data = options.containsKey("data") ? (String) options.get("data") : null;
 		
 
-		HttpURLConnection connection = (HttpURLConnection) (new URL(url)).openConnection();
+		final HttpURLConnection connection = (HttpURLConnection) (new URL(url)).openConnection();
 		
 		// header
 		connection.setRequestMethod(method);
@@ -57,7 +57,7 @@ public class Request {
 		connection.connect();
 
 		// get response
-		new Thread(() -> {
+		new Thread(new Runnable() { public void run () {
 			try {
 				if (connection.getResponseCode() == 200) {
 					try (
@@ -96,6 +96,6 @@ public class Request {
 				e.printStackTrace();
 				onerror.call(this, e);
 			}
-		}).start();
+		} }).start();
 	}
 }
