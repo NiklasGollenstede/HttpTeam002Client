@@ -14,7 +14,7 @@
 	(function(validator) {
 		Validate = validator.validate.bind(null, print);
 		Types = validator.types;
-	})(load('./validate.js'));
+	})(load('./validate.js', { }));
 
 	var Logger = function(line) function(arg) print("log "+ line +":", arg);
 
@@ -56,7 +56,7 @@
 		});
 	}
 
-	return self = ({
+	return (self = ({
 		init: makeAsync(function(port) {
 			print("init: ", port);
 			self.baseUrl = 'http://localhost:'+ port;
@@ -145,7 +145,7 @@
 					},
 					get: function(index) {
 						return list[index];
-					}, 
+					},
 				};
 			})();
 
@@ -329,5 +329,5 @@
 		getBookingAmountFromObject: function(index) {
 			return new Double(self.list.get(index).amount);
 		},
-	});
+	}));
 }).call(this);

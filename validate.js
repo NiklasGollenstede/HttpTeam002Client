@@ -1,6 +1,5 @@
-(function() {
+(function(global) {
 	'use strict';
-	var global = (typeof exports != 'undefined') ? exports : { };
 
 	var natural = { type: "number", range: [0, 4503599627370495/*^=2^52-1*/], cast: true,  warn: true, map: Math.round, };
 	var date = natural;
@@ -25,7 +24,7 @@
 			year: natural,
 			month: month,
 		}
-	}
+	};
 
 	var throwOut = { };
 
@@ -122,4 +121,4 @@
 		}
 	};
 	return global;
-})();
+})((typeof exports != 'undefined') ? exports : ((typeof window != 'undefined') ? window : { }));

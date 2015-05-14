@@ -34,7 +34,7 @@ this.JsonRequest = (function() {
 										reject({
 											error: NaN,
 											description: error.getClass().getName() +': '+ error.getMessage(),
-										})
+										});
 									} catch (e) {
 										reject(error);
 									}

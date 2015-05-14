@@ -12,12 +12,12 @@
 	this.makeAsync = function(fn) {
 		return function(/* args */) {
 			eventLoop.schedule(fn.apply.bind(fn, this || null, arguments), 0);
-		}
+		};
 	};
 
 	this.shutdownTimer = function() {
 		eventLoop.cancel();
-	}
+	};
 }).call(this);
 
 

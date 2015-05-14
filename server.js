@@ -49,7 +49,7 @@ var newId = (function() {
 	var counter = 0;
 	return function() {
 		return ++counter;
-	}
+	};
 })();
 
 // testdata
@@ -66,7 +66,7 @@ var book = [
 				{ id: newId(), desc: line[0] +"-"+ month +"-13", amount: month * 7, date: +(new Date(line[0] +"-"+ (month < 10 ? '0'+ month : month) +"-13")), },
 				{ id: newId(), desc: line[0] +"-"+ month +"-28", amount: month * 23, date: +(new Date(line[0] +"-"+ (month < 10 ? '0'+ month : month) +"-28")), },
 			],
-		}
+		};
 		return year;
 	}, { });
 	return book;
@@ -115,7 +115,7 @@ function handle(response, method, url, body) {
 							var entry = book[year] && book[year][month];
 							if (!entry) { throw Errors.notFound; }
 							return entry.entries;
-						})(); break;
+						})();
 						case 'put': return (function() {
 							var payment = Validate(Types.payment, body);
 							console.log('insert payment ', payment);
@@ -133,7 +133,7 @@ function handle(response, method, url, body) {
 							book[year][month].entries.push(payment);
 
 							return [ payment, new Month(year, month)];
-						})(); break;
+						})();
 						case 'delete': return (function() {
 							var payment = Validate(Types.payment, body);
 							console.log('delete payment ', payment);
@@ -143,7 +143,7 @@ function handle(response, method, url, body) {
 							var month = date.getMonth()- -1;
 
 							if (!(book[year] && book[year][month])) { throw Errors.notFound; }
-							
+
 							var old = book[year][month].entries.reduce(function(match, entry) {
 								return (Object.keys(payment).every(function(key) { return payment[key] == entry[key]; }))
 									? entry : match;
@@ -151,9 +151,9 @@ function handle(response, method, url, body) {
 							if (!old) { throw Errors.badRequest; }
 
 							book[year][month].entries.splice(book[year][month].entries.indexOf(old), 1);
-							
+
 							return new Month(year, month);
-						})(); break;
+						})();
 						case 'post': return (function() {
 							var payment = Validate(Types.payment, body[0]), now = Validate(Types.payment, body[1]);
 							console.log('update payment ', payment, ' to ', now);
@@ -164,7 +164,7 @@ function handle(response, method, url, body) {
 
 							if (!(book[year] && book[year][month])) { throw Errors.notFound; }
 							if (payment.id != now.id) { throw Errors.badRequest; }
-							
+
 							var old = book[year][month].entries.reduce(function(match, entry) {
 								return (Object.keys(payment).every(function(key) { return payment[key] == entry[key]; }))
 									? entry : match;
@@ -172,9 +172,9 @@ function handle(response, method, url, body) {
 							if (!old) { throw Errors.badRequest; }
 
 							book[year][month].entries.splice(book[year][month].entries.indexOf(old), 1, now);
-							
+
 							return new Month(year, month);
-						})(); break;
+						})();
 						default: {
 							throw Errors.methodNotAllowed;
 						}
@@ -202,10 +202,10 @@ function handle(response, method, url, body) {
 
 								return new Month(year, month);
 							}
-						})(); break;
+						})();
 						case 'post': return (function() {
 							console.log('update month to ', body);
-							var now = Validate(Types.month, body)
+							var now = Validate(Types.month, body);
 							var year = now.year, month = now.month;
 							if (
 								now.id != (now.year*100- -now.month)
@@ -215,7 +215,7 @@ function handle(response, method, url, body) {
 							}
 							book[year][month].budget = now.budget;
 							return new Month(year, month);
-						})(); break;
+						})();
 						default: {
 							throw Errors.methodNotAllowed;
 						}
