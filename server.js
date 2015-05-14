@@ -9,6 +9,7 @@
 * @param options.prompt If true, the server will prompt for permission to answer at each request || false
 * @param options.minping Minimal (emulated) time the server takes to process a request || (options.prompt ? 0 : 300)
 * @param options.maxping Maximal (emulated) time the server takes to process a request || (options.prompt ? 0 : 800)
+* @param options.print If true, the server will print its current ``database´´ at startup and after each change
 *
 * This implementation supports all required methods and paths (including PUT /months/[year]/[month])
 * At startup it generates some testdata, @see // testdata
@@ -20,6 +21,7 @@ var args = process.argv[2] && JSON.parse(process.argv[2]) || { };
 var options = {
 	port: args.port || 8081,
 	ip: args.ip || 'localhost',
+	print: !!args.print,
 };
 if (args.prompt) {
 	options.prompt = true;
@@ -78,6 +80,7 @@ Object.keys(book).forEach(function(year) {
 		});
 	});
 });
+options.print && console.log("testdata", JSON.stringify(book, null, "|   "));
 
 function Month(year, month) {
 	return {
@@ -131,6 +134,7 @@ function handle(response, method, url, body) {
 							};
 							payment.id = newId();
 							book[year][month].entries.push(payment);
+							options.print && console.log("testdata", JSON.stringify(book, null, "|   "));
 
 							return [ payment, new Month(year, month)];
 						})();
@@ -151,6 +155,7 @@ function handle(response, method, url, body) {
 							if (!old) { throw Errors.badRequest; }
 
 							book[year][month].entries.splice(book[year][month].entries.indexOf(old), 1);
+							options.print && console.log("testdata", JSON.stringify(book, null, "|   "));
 
 							return new Month(year, month);
 						})();
@@ -172,6 +177,7 @@ function handle(response, method, url, body) {
 							if (!old) { throw Errors.badRequest; }
 
 							book[year][month].entries.splice(book[year][month].entries.indexOf(old), 1, now);
+							options.print && console.log("testdata", JSON.stringify(book, null, "|   "));
 
 							return new Month(year, month);
 						})();
@@ -214,6 +220,8 @@ function handle(response, method, url, body) {
 								throw Errors.badRequest;
 							}
 							book[year][month].budget = now.budget;
+							options.print && console.log("testdata", JSON.stringify(book, null, "|   "));
+
 							return new Month(year, month);
 						})();
 						default: {
