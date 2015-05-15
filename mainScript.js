@@ -31,20 +31,21 @@
 			new Thread(function() {
 				try {
 					if (dialog.getAction() == 0x01/*OK*/) {
-						var date = dialog.getBookingDateString().match(/^([0-9][0-9]?)\.([0-9][0-9]?)\.([0-9][0-9]([0-9][0-9])?)$/);
+						var date = dialog.getBookingDateString().match(/^([0-9][0-9])\.([0-9][0-9])\.([0-9][0-9][0-9][0-9])$/);
 						if (date == null) {
 							throw "bad date format";
 						}
+						date = new Date( // year: 00 ^= 2000 AD; 29 ^= 2029 AD; 30 ^= 1930 AD; 99 ^= 1999 AD; 100+ ^= 100+ AD
+							((+date[3] < 30) ? (date[3]- -100) : ((+date[3] < 100) ? date[3] : (date[3] - 1900))),
+							(date[2] - 1),
+							(date[1] - 0)
+						);
 
 						resolve({
 							id: old.id || -1,
 							desc: dialog.getDescriptionString() +"",
 							amount: +(dialog.getAmountString().replace(/\./g, "").replace(",", ".")),
-							date: new Date( // year: 00 ^= 2000 AD; 29 ^= 2029 AD; 30 ^= 1930 AD; 99 ^= 1999 AD; 100+ ^= 100+ AD
-								((+date[3] < 30) ? (date[3]- -100) : ((+date[3] < 100) ? date[3] : (date[3] - 1900))),
-								(date[2] - 1),
-								(date[1] - 0)
-							).getTime(),
+							date: date.getTime(),
 						});
 					} else {
 						throw "canceled by user";
@@ -80,18 +81,25 @@
 				get: function() { return +self.panel.getFormTextfieldSum().getText(); },
 				set: function(value) { self.panel.getFormTextfieldSum().setText(value +""); },
 			});
-			Object.defineProperty(self, 'years', {
-				set: function(list) {
-					self.combo.year.removeAllItems();
-					list.forEach(function(year) self.combo.year.addItem(year +''));
-				},
-			});
-			Object.defineProperty(self, 'months', {
-				set: function(list) {
-					self.combo.month.removeAllItems();
-					list.forEach(function(month) self.combo.month.addItem(month +''));
-				},
-			});
+			(function () {
+				var years = [ ], months =  [ ];
+				Object.defineProperty(self, 'years', {
+					get: function() { return years; },
+					set: function(list) {
+						self.combo.year.removeAllItems();
+						list.forEach(function(year) self.combo.year.addItem(year +''));
+						years = list;
+					},
+				});
+				Object.defineProperty(self, 'months', {
+					get: function() { return months; },
+					set: function(list) {
+						self.combo.month.removeAllItems();
+						list.forEach(function(month) self.combo.month.addItem(month +''));
+						months = list;
+					},
+				});
+			})();
 			(function() {
 				var year, month;
 				Object.defineProperty(self, 'year', {
@@ -180,10 +188,20 @@
 					},
 					add: function(entry) {
 						if (this.find({ year: entry.year, month: entry.month, })) {
-							throw new Exception("month already excists");
+							throw new Exception("month already exists");
 						} else {
+							var index;
+							if (!self.years.some(function(year) +year === +entry.year)) {
+								self.years.some(function(y, i) (print(y, i), +y > +entry.year && (index = i)));
+								self.combo.year.insertItemAt(entry.year +'', index || self.years.length);
+								self.years.splice(index || self.years.length, 0, entry.year +'');
+							}
+							else if (+self.year === +entry.year && !self.months.some(function(month) +month === +entry.month)) {
+								self.months.some(function(m, i) (print(m, i), +m > +entry.month && (index = i)));
+								self.combo.month.insertItemAt(entry.month +'', index || self.months.length);
+								self.months.splice(index || self.months.length, 0, entry.month +'');
+							}
 							list.push(entry);
-							this.refresh();
 						}
 					},
 					remove: function(year, month) {
@@ -208,7 +226,7 @@
 							JsonRequest("get", self.baseUrl +"/months/"+ year +"/"+ month, null, 2000)
 							.then(function(month) {
 								Validate(Types.month, month);
-								self.calender.update(month.year, month.month, month);
+								self.calender.update(month);
 							}).catch(Logger(__LINE__));
 
 							JsonRequest("get", self.baseUrl +"/payments/"+ year +"/"+ month, null, 2000)
@@ -219,9 +237,10 @@
 							}).catch(Logger(__LINE__));
 						}
 					},
-					update: function(year, month, change) {
-						var item = this.find({ year: year, month: month, });
-						Object.keys(change).forEach(function(key) item[key] = change[key]);
+					update: function(entry) {
+						var item = this.find({ year: entry.year, month: entry.month, });
+						if (!item) { return this.add(entry); }
+						Object.keys(entry).forEach(function(key) item[key] = entry[key]);
 						if (item == selected) {
 							self.budget = (+item.budget).toFixed(2).replace('.', ',');
 							self.sum = (+item.sum).toFixed(2).replace('.', ',');
@@ -236,7 +255,7 @@
 						JsonRequest("post", self.baseUrl +"/months", now)
 						.then(function(month) {
 							Validate(Types.month, month);
-							self.calender.update(month.year, month.month, month);
+							self.calender.update(month);
 						}).catch(Logger(__LINE__));
 					}
 				};
@@ -280,7 +299,7 @@
 				return JsonRequest("put", self.baseUrl +"/payments", entry);
 			}).then(function(pair) {
 				var month = Validate(Types.month, pair[1]);
-				self.calender.update(month.year, month.month, month);
+				self.calender.update(month);
 				var entry = Validate(Types.payment, pair[0]);
 				if (month.year == self.year && month.month == self.month) {
 					self.list.add(entry);
@@ -298,7 +317,7 @@
 				return JsonRequest("post", self.baseUrl +"/payments", [ old, now, ]);
 			}).then(function(month) {
 				Validate(Types.month, month);
-				self.calender.update(month.year, month.month, month);
+				self.calender.update(month);
 				if (month.year == self.year && month.month == self.month) {
 					self.list.update(entry);
 				}
@@ -310,7 +329,7 @@
 			JsonRequest("delete", self.baseUrl +"/payments", entry)
 			.then(function(month) {
 				Validate(Types.month, month);
-				self.calender.update(month.year, month.month, month);
+				self.calender.update(month);
 				if (month.year == self.year && month.month == self.month) {
 					self.list.remove(entry);
 				}

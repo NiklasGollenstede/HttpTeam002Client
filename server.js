@@ -103,7 +103,7 @@ function handle(response, method, url, body) {
 	try {
 		body = body && JSON.parse(body);
 
-		console.log('handle:', method, url, body);
+		console.log('handle:', method, url, body || '<no body>');
 
 		var ret = (function() {
 			switch (url.match(/\/(\w*)/)[1]) {
