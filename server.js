@@ -10,6 +10,7 @@
 * @param options.minping Minimal (emulated) time the server takes to process a request || (options.prompt ? 0 : 300)
 * @param options.maxping Maximal (emulated) time the server takes to process a request || (options.prompt ? 0 : 800)
 * @param options.print If true, the server will print its current ``database´´ at startup and after each change
+* @param options.noData If true, the server will not generate any testdata at startup
 *
 * This implementation supports all required methods and paths (including PUT /months/[year]/[month])
 * At startup it generates some testdata, @see // testdata
@@ -22,6 +23,7 @@ var options = {
 	port: args.port || 8081,
 	ip: args.ip || 'localhost',
 	print: !!args.print,
+	noData: !!(args.noData || args.nodata),
 };
 if (args.prompt) {
 	options.prompt = true;
@@ -55,7 +57,7 @@ var newId = (function() {
 })();
 
 // testdata
-var book = [
+var book = options.noData ? [ ] : [
 	[ 2012, [ 1, 5, ], ],
 	[ 2013, [ 2, 6, ], ],
 	[ 2014, [ 3, 7, ], ],
@@ -70,9 +72,9 @@ var book = [
 			],
 		};
 		return year;
-	}, { });
+	}, [ ]);
 	return book;
-}, { });
+}, [ ]);
 Object.keys(book).forEach(function(year) {
 	Object.keys(book[year]).forEach(function(month) {
 		book[year][month].entries.forEach(function(payment) {
@@ -210,16 +212,15 @@ function handle(response, method, url, body) {
 							}
 						})();
 						case 'post': return (function() {
-							console.log('update month to ', body);
-							var now = Validate(Types.month, body);
-							var year = now.year, month = now.month;
-							if (
-								now.id != (now.year*100- -now.month)
-								|| !(book[year] && book[year][month])
-							) {
+							var tupel = url.match(/\/\w*\/(\d+)\/(\d+)/);
+							if (!tupel) { throw Errors.notFound; }
+							var year = +tupel[1], month = +tupel[2];
+							var budget = +body.budget;
+							console.log('update budget of '+ year +''+ month +' to ', budget);
+							if (!(book[year] && book[year][month])) {
 								throw Errors.badRequest;
 							}
-							book[year][month].budget = now.budget;
+							book[year][month].budget = budget;
 							options.print && console.log("testdata", JSON.stringify(book, null, "|   "));
 
 							return new Month(year, month);

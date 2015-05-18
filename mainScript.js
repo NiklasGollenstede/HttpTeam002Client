@@ -16,7 +16,7 @@
 		Types = validator.types;
 	})(load('./validate.js', { }));
 
-	var Logger = function(line) function(arg) print("log "+ line +":", arg);
+	var Logger = function(line) function(arg) print("log "+ line +":", JSON.stringify(arg));
 
 	function Modal(old) {
 		return new Promise(function(resolve, reject) {
@@ -172,11 +172,11 @@
 						list.sort(function(a, b) a.year - b.year || a.month - b.month);
 
 						self.years = list.reduce(function(list, item) ((list.indexOf(item.year) == -1 && list.push(item.year)), list), []);
-
 						self.months = this.getMonths(self.combo.year.getSelectedItem());
 					},
 					init: function(array) {
 						list = array.slice();
+						!list.length && list.push({ id: 0, year: (new Date().getYear() + 1900), month: (new Date().getMonth() + 1), budget: 0, sum: 0 });
 						this.refresh();
 					},
 					clear: function() {
@@ -230,6 +230,7 @@
 							}).catch(Logger(__LINE__));
 
 							JsonRequest("get", self.baseUrl +"/payments/"+ year +"/"+ month, null, 2000)
+							.catch(function() (Logger(__LINE__), [ ]))
 							.then(function(payments) {
 								payments.forEach(function(payment) Validate(Types.payment, payment));
 								if (year != selected.year || month != selected.month) { return; }
@@ -248,11 +249,9 @@
 						}
 					},
 					setBudget: function(year, month, budget) {
-						var now = this.find({ year: year, month: month, });
-						now.budget = budget;
 						self.budget = Infinity;
 
-						JsonRequest("post", self.baseUrl +"/months", now)
+						JsonRequest("post", self.baseUrl +"/months/"+ year +"/"+ month, { budget: budget, })
 						.then(function(month) {
 							Validate(Types.month, month);
 							self.calender.update(month);

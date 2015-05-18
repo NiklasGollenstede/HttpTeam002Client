@@ -6,7 +6,7 @@
 	this.setTimeout = function(fn, millis /*, args... */) {
 		var args = Array.prototype.slice.call(arguments, 2);
 
-		eventLoop.schedule(fn.apply.bind(fn, null, args), millis || 0);
+		eventLoop.schedule(fn.apply.bind(fn, null, args), +millis || 0);
 	};
 
 	this.makeAsync = function(fn) {

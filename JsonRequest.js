@@ -22,7 +22,7 @@ this.JsonRequest = (function() {
 						},
 						onerror: function(error) {
 							try {
-								reject(JSON.parse(text));
+								reject(JSON.parse(error));
 							} catch (e) {
 								if (typeof error == 'string') {
 									reject({
